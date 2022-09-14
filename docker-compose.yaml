@@ -1,0 +1,11 @@
+services:
+  dining_hall_restaurant:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+networks:
+  default:
+    name: restaurant
+    external: true
