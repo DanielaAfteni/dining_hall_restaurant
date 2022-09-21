@@ -1,16 +1,23 @@
-# dining_hall_restaurant
+# The first laboratory work at PR dining_hall_restaurant
 
-This is the first lab at PR. It is related to the kitchen_restaurant repository.
+This is the dining_hall_restaurant. It is related to the kitchen_restaurant repository.
 
-## To run the restaurant app with Docker
+## Restaurant app with Docker (used here docker compose)
+
+It is required to introduce in Terminal:
 
 ```bash
 $ docker compose up --build
 ```
-## To simply run the app
+## Run the app in the Terminal
 
-You need to change: `"kitchen_url": "http://localhost:8081"` in `config/scfg.json`.
+Firstly there is required to switch: `"kitchen_url": "http://localhost:8081"` in `config/scfg.json`.
+
+Then to run in the Terminal:
 
 ```bash
 $ go run .
 ```
+## Try it by yourself
+
+Pay attention at the order of running, because everytime the kitchen_restaurant is running first.

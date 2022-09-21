@@ -58,17 +58,17 @@ func (w *Waiter) Run() {
 				log.Fatal().Err(err).Msg("Error marshalling order")
 			}
 			contentType := "application/json"
-
+			// Post issues a POST to the specified URL: kitchen_restaurant/order
 			_, err = http.Post(scfg.KitchenUrl+"/order", contentType, bytes.NewReader(jsonBody))
 			if err != nil {
 				log.Fatal().Err(err).Msg("Error sending order to kitchen")
 			}
 
-			log.Info().Int("waiter_id", w.Id).Int64("order_id", order.OrderId).Msg("A waiter sent order to kitchen")
+			log.Info().Int("waiterId", w.Id).Int64("orderId", order.OrderId).Msg("A waiter sent order to kitchen")
 		// for distributing waiter
 		case distribution := <-w.DistributionChan:
 			order := distribution.Order
-			log.Info().Int("waiter_id", w.Id).Int64("order_id", order.OrderId).Int("cooking_time", distribution.CookingTime).Float64("max_wait", distribution.MaxWait).Msgf("Waiter received distribution")
+			log.Info().Int("waiterId", w.Id).Int64("orderId", order.OrderId).Int("cookingTime", distribution.CookingTime).Float64("maxWait", distribution.MaxWait).Msgf("Waiter received distribution")
 			w.TablesChans[order.TableId] <- order
 		}
 	}

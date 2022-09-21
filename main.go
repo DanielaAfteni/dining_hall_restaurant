@@ -32,7 +32,7 @@ func main() {
 	waitersChans := make([]chan basicproces.Distribution, 0)
 	// we are looping over the number of tables (which is 10)
 	for i := 0; i < scfg.NrOfTables; i++ {
-		// we set a new variable table -
+		// we set a new variable table
 		table := basicproces.NewTable(i, menu, newOrderChan, ratingChan)
 		// we add to the table chans the received chan
 		tablesChans = append(tablesChans, table.ReceiveChan)
@@ -47,7 +47,7 @@ func main() {
 	}
 	// call the function for making an average rating
 	go rating(ratingChan)
-
+	// Gin is a high-performance HTTP web framework written in Golang (Go).
 	r := gin.Default()
 	r.POST("/distribution", func(c *gin.Context) {
 		var distribution basicproces.Distribution
@@ -65,14 +65,17 @@ func main() {
 
 // function for making an average rating
 func rating(ratingChan <-chan int) {
+	// taking into account that we have number of ratings, set initially as 0
 	nrOfRatings := 0
+	// taking into account that we have total rating, set initially as 0
 	totalRating := 0
 	// infinit loop
 	for {
+		// we are going to take the
 		rating := <-ratingChan
 		nrOfRatings++
 		totalRating += rating
-		log.Info().Int("rating", rating).Float64("avg_rating", float64(totalRating)/float64(nrOfRatings)).Msg("Received rating")
+		log.Info().Int("Rating", rating).Float64("avgRating", float64(totalRating)/float64(nrOfRatings)).Msg("Received rating")
 	}
 }
 
@@ -88,9 +91,11 @@ func config() basicproces.Config {
 	}
 	// close the file
 	defer file.Close()
-
+	// read the data from the file and return the data
 	byteValue, _ := ioutil.ReadAll(file)
+	//
 	var scfg basicproces.Config
+	// Unmarshal parses the JSON-encoded data and stores the result in the value pointed to by scfg.
 	json.Unmarshal(byteValue, &scfg)
 
 	return scfg

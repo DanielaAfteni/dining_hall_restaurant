@@ -32,7 +32,7 @@ func (o Order) CalculateRating() int {
 	// show the maximum waiting time for this order
 	maxWaitTime := o.MaxWait
 	// show the corresponding message
-	log.Info().Int64("order_id", o.OrderId).Float64("order_time", orderTime).Float64("max_wait", maxWaitTime).Msg("Rating calculation")
+	log.Info().Int64("orderId", o.OrderId).Float64("orderTime", orderTime).Float64("maxWait", maxWaitTime).Msg("Rating calculation")
 	// in case if the order time is smaller than maximum waiting time
 	if orderTime < maxWaitTime {
 		// then return 5

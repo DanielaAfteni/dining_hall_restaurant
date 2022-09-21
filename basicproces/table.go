@@ -85,7 +85,7 @@ func (t *Table) waitAvailable() {
 	// then we move on to the next stage from available table to ready to send
 	t.nextState()
 
-	log.Info().Int("table_id", t.Id).Msg("A table is occupied")
+	log.Info().Int("tableId", t.Id).Msg("A table is occupied")
 }
 
 // function for a table placing a new order
@@ -102,6 +102,7 @@ func (t *Table) sendOrder() {
 		Items:    make([]int, foodCount),
 		Priority: scfg.MaxOrderItemsCount - foodCount,
 	}
+
 	maxTime := 0
 	for i := 0; i < foodCount; i++ {
 		order.Items[i] = rand.Intn(t.Menu.FoodsCount) + 1
@@ -115,7 +116,7 @@ func (t *Table) sendOrder() {
 	t.SendChan <- order
 	t.nextState()
 
-	log.Info().Int("table_id", t.Id).Int64("order_id", order.OrderId).Msg("A table placed new order")
+	log.Info().Int("tableId", t.Id).Int64("orderId", order.OrderId).Msg("A table placed new order")
 }
 
 // function for a table receiving an order
@@ -127,7 +128,7 @@ func (t *Table) receiveOrder() {
 	for order := range t.ReceiveChan {
 		// if everything is wrong, then show that: received wrong order
 		if order.TableId != t.Id || order.OrderId != t.CurrentOrder.OrderId {
-			log.Err(nil).Int("table_id", t.Id).Int64("order_id", order.OrderId).Msg("A table received wrong order")
+			log.Err(nil).Int("tableId", t.Id).Int64("orderId", order.OrderId).Msg("A table received wrong order")
 			continue
 		}
 		// call the function responsible for the rating calculation
@@ -137,7 +138,7 @@ func (t *Table) receiveOrder() {
 		// moving to another stage: give the people their order back
 		t.nextState()
 		// show that a table received its order
-		log.Info().Int("table_id", t.Id).Int64("order_id", order.OrderId).Int("rating", rating).Msg("A table received its order")
+		log.Info().Int("tableId", t.Id).Int64("orderId", order.OrderId).Int("rating", rating).Msg("A table received its order")
 		return
 	}
 }
