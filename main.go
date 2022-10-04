@@ -3,100 +3,93 @@ package main
 import (
 	// Package json implements encoding and decoding of JSON.
 	// The mapping between JSON and Go values is described in the documentation for the Marshal and Unmarshal functions.
-	"encoding/json"
+
 	// Package ioutil implements some I/O utility functions.
-	"io/ioutil"
+
 	// Package os provides a platform-independent interface to operating system functionality.
-	"os"
+
 	// importing the gin, because is a high-performance HTTP web framework written in Golang (Go).
-	"github.com/DanielaAfteni/dining_hall_restaurant/basicproces"
+	"bytes"
+	"encoding/json"
+	"math/rand"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
+const TIME_UNIT = 250
+
 func main() {
-	// setting the configuration
-	scfg := config()
-	basicproces.SettingtheConfig(scfg)
-	//we create the menu, by calling the corresponding function
-	menu := basicproces.GetMenu()
-	// Channels are a typed conduit through which you can send and receive values with the channel operator, <-.
-	// we create a new order channel
-	newOrderChan := make(chan basicproces.Order)
-	// we create a rating channel
-	ratingChan := make(chan int)
-	// we make the table channels
-	tablesChans := make([]chan basicproces.Order, 0)
-	// as well as we make the waiter channels
-	waitersChans := make([]chan basicproces.Distribution, 0)
-	// we are looping over the number of tables (which is 10)
-	for i := 0; i < scfg.NrOfTables; i++ {
-		// we set a new variable table
-		table := basicproces.NewTable(i, menu, newOrderChan, ratingChan)
-		// we add to the table chans the received chan
-		tablesChans = append(tablesChans, table.ReceiveChan)
-		go table.Run()
+	router := gin.Default()
+	router.POST("/distribution", recieveOrder)
+
+	rand.Seed(time.Now().UnixNano())
+	for id := 0; id < NrTables; id++ {
+		tables = append(tables, &Table{
+			Table_Id: id + 1,
+			state:    TableAvailable,
+		})
 	}
-	// we are looping over the number of waiters (which is 4)
-	for i := 0; i < scfg.NrOfWaiters; i++ {
-		waiter := basicproces.NewWaiter(i, newOrderChan, tablesChans)
-		// we add to the waiters chans the waiter distribution channel
-		waitersChans = append(waitersChans, waiter.DistributionChan)
-		go waiter.Run()
-	}
-	// call the function for making an average rating
-	go rating(ratingChan)
-	// Gin is a high-performance HTTP web framework written in Golang (Go).
-	r := gin.Default()
-	r.POST("/distribution", func(c *gin.Context) {
-		var distribution basicproces.Distribution
-		if err := c.ShouldBindJSON(&distribution); err != nil {
-			log.Err(err).Msg("Error binding JSON")
-			c.JSON(400, gin.H{"error": err.Error()})
-			return
+	for id := range Waiters {
+		Waiters[id] = &Waiter{
+			id:           id + 1,
+			waiterTables: tables,
 		}
-		waiterId := distribution.WaiterId
-		waitersChans[waiterId] <- distribution
-		c.JSON(200, gin.H{"message": "Order served"})
-	})
-	r.Run()
+	}
+	go generateOrders()
+	for id := range Waiters {
+		go Waiters[id].OrdersToLookFor()
+	}
+	router.Run(":8080")
 }
 
-// function for making an average rating
-func rating(ratingChan <-chan int) {
-	// taking into account that we have number of ratings, set initially as 0
-	nrOfRatings := 0
-	// taking into account that we have total rating, set initially as 0
-	totalRating := 0
-	// infinit loop
+func recieveOrder(c *gin.Context) {
+	var order *OrderPrepared
+	if err := c.BindJSON(&order); err != nil {
+		return
+	}
+	GetRating(order.MaxPreparationTime, order.CookingTime)
+	GetTable(order.TableId - 1).SetState(TableAvailable)
+	log.Printf("Already prepared order was recieved from kitchen %+v \n", order)
+	c.IndentedJSON(http.StatusCreated, order)
+}
+
+func (w *Waiter) OrdersToLookFor() {
 	for {
-		// we are going to take the
-		rating := <-ratingChan
-		nrOfRatings++
-		totalRating += rating
-		log.Info().Int("Rating", rating).Float64("avgRating", float64(totalRating)/float64(nrOfRatings)).Msg("Received rating")
+		for _, eachtable := range w.waiterTables {
+			if eachtable.GetState() == TableWaitingToMakeOrder {
+				order := eachtable.OrderCreationASForTable()
+				log.Printf("From table with id = %d, the waiter with id = %d took the order %+v", eachtable.Table_Id, w.id, order)
+				sendOrder := &OrderToSend{
+					Order:      order,
+					Table_Id:   eachtable.Table_Id,
+					WaiterId:   w.id,
+					PickUpTime: time.Now().Unix(),
+				}
+				jsonBody, err := json.Marshal(sendOrder)
+				if err != nil {
+					log.Err(err).Msg("Error!!!")
+				}
+				contentType := "application/json"
+				//_, err = http.Post("http://kitchen_restaurant:8081/order", contentType, bytes.NewReader(jsonBody))
+				_, err = http.Post("http://localhost:8081/order", contentType, bytes.NewReader(jsonBody))
+				if err != nil {
+					log.Err(err).Msg("Error!!")
+				}
+			}
+		}
 	}
 }
 
-func config() basicproces.Config {
-	// Output writes the output for a logging event
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	log.Logger = log.With().Caller().Logger()
-	// To open and read the json file
-	file, err := os.Open("config/scfg.json")
-	// in case of an error, it returns a message
-	if err != nil {
-		log.Fatal().Err(err).Msg("Error appeared at opening menu.json. Try to find it.")
+func CalculateFinalRating() {
+	var totalPointsGathered float32
+	var nrOfTotalOrders float32
+	for _, points := range Ratings {
+		nrOfTotalOrders += points
 	}
-	// close the file
-	defer file.Close()
-	// read the data from the file and return the data
-	byteValue, _ := ioutil.ReadAll(file)
-	//
-	var scfg basicproces.Config
-	// Unmarshal parses the JSON-encoded data and stores the result in the value pointed to by scfg.
-	json.Unmarshal(byteValue, &scfg)
-
-	return scfg
+	totalPointsGathered = Ratings[1]*1 + Ratings[2]*2 + Ratings[3]*3 + Ratings[4]*4 + Ratings[5]*5
+	finalRating := totalPointsGathered / nrOfTotalOrders
+	log.Printf("Final rating of the restaurant = %f", finalRating)
 }

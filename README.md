@@ -11,7 +11,7 @@ $ docker compose up --build
 ```
 ## Run the app in the Terminal
 
-Firstly there is required to switch: `"kitchen_url": "http://localhost:8081"` in `config/scfg.json`.
+Firstly there is required to switch: `"kitchen_url": "http://localhost:8080/distribution"` in `main.go`.
 
 Then to run in the Terminal:
 
