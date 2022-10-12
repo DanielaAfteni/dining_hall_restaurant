@@ -24,6 +24,7 @@ const TIME_UNIT = 250
 func main() {
 	router := gin.Default()
 	router.POST("/distribution", recieveOrder)
+	router.POST("/v2/order", recieveOrderFromFoodOrdering)
 
 	rand.Seed(time.Now().UnixNano())
 	for id := 0; id < NrTables; id++ {
@@ -42,7 +43,29 @@ func main() {
 	for id := range Waiters {
 		go Waiters[id].OrdersToLookFor()
 	}
+	go RestaurantRegistration()
+
 	router.Run(":8080")
+}
+
+func RestaurantRegistration() {
+	var restaurant = Restaurant{
+		RestaurantId:      1,
+		NameRestaurant:    "McDonald's",
+		AddressRestaurant: "http://dining_hall_restaurant:8080",
+		MenuItems:         10,
+		Menu:              Menu,
+	}
+	jsonBody, err := json.Marshal(restaurant)
+	if err != nil {
+		log.Err(err).Msg("Error!!!")
+	}
+	contentType := "application/json"
+	//_, err = http.Post("http://food_ordering_service_restaurant:8090/register", contentType, bytes.NewReader(jsonBody))
+	_, err = http.Post("http://localhost:8090/register", contentType, bytes.NewReader(jsonBody))
+	if err != nil {
+		log.Err(err).Msg("Error!!")
+	}
 }
 
 func recieveOrder(c *gin.Context) {
@@ -53,6 +76,16 @@ func recieveOrder(c *gin.Context) {
 	GetRating(order.MaxPreparationTime, order.CookingTime)
 	GetTable(order.TableId - 1).SetState(TableAvailable)
 	log.Printf("Already prepared order was recieved from kitchen %+v \n", order)
+	c.IndentedJSON(http.StatusCreated, order)
+}
+
+func recieveOrderFromFoodOrdering(c *gin.Context) {
+	var order *Order
+	if err := c.BindJSON(&order); err != nil {
+		log.Err(err).Msg("Error!!")
+		return
+	}
+	log.Printf("The restaurant received from client new order: %+v", order)
 	c.IndentedJSON(http.StatusCreated, order)
 }
 
